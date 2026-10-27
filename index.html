@@ -149,6 +149,7 @@
   .bars-cap { position: relative; height: 18px; margin-left: 108px; margin-right: 64px; }
   .bars-cap span { position: absolute; transform: translateX(-50%); font-size: 11.5px; color: #c9ccd0; white-space: nowrap; }
   .bar-row { display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; padding: 7px 0; }
+  .bar-row.sel { background: rgba(255, 255, 255, .06); border-radius: 8px; margin: 0 -10px; padding: 7px 10px; }
   .bar-row .name { font-size: 12.5px; color: #c9ccd0; }
   .bar-row .st { display: block; font-size: 11px; margin-top: 2px; line-height: 1.3; }
   .bar-row .val { text-align: right; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -262,9 +263,9 @@
           <label class="input"><input type="number" step="any" inputmode="decimal" id="s-twa" placeholder="Enter TWA" aria-label="TWA noise level"><span class="unit">dBA</span></label>
         </div>
         <div>
-          <p class="label">Shift length</p>
-          <p class="hint">Hours the TWA covers.</p>
-          <div class="seg" id="s-len" role="group" aria-label="Shift length">
+          <p class="label">Measured over</p>
+          <p class="hint">How long the dosimeter ran for this TWA.</p>
+          <div class="seg" id="s-len" role="group" aria-label="Measured over">
             <button type="button" data-v="8">8 hr</button>
             <button type="button" data-v="10">10 hr</button>
             <button type="button" data-v="12">12 hr</button>
@@ -463,7 +464,7 @@
     if (twa === null) {
       setPill(undefined);
       setBig("–", "%", true);
-      els.lead.textContent = "Dose if the same noise continued for 12 hours.";
+      els.lead.textContent = "Dose for the " + S + "-hour shift you measured.";
       els.extra.innerHTML = "";
       els.msg.textContent = "Enter a TWA to see the table.";
       setControls(false);
@@ -474,10 +475,10 @@
       var d = doseFromTwa(t);
       return { h: h, twa: t, dose: d, st: status(d) };
     });
-    var last = rows[2];
-    setPill(last.st);
-    setBig(f0(last.dose), "%", false);
-    els.lead.textContent = "Dose if the same noise continued for 12 hours.";
+    var measured = rows.filter(function (r) { return r.h === S; })[0];
+    setPill(measured.st);
+    setBig(f0(measured.dose), "%", false);
+    els.lead.textContent = "Dose for the " + S + "-hour shift you measured. The table shows the same noise over 8, 10 and 12 hours.";
 
     var maxDose = Math.max.apply(null, rows.map(function (r) { return r.dose; }));
     var scale = Math.max(150, maxDose * 1.15);
@@ -485,7 +486,7 @@
     var html = '<div class="bars"><div class="bars-cap"><span style="left:' + markPct + '%">Limit 100%</span></div>';
     rows.forEach(function (r) {
       var w = Math.max(0, Math.min(100, r.dose / scale * 100));
-      html += '<div class="bar-row">' +
+      html += '<div class="bar-row' + (r.h === S ? ' sel' : '') + '">' +
         '<span class="name">' + r.h + ' hours<span class="st t-' + r.st.tone + '">' + esc(r.st.label) + '</span></span>' +
         '<span class="track"><span class="fill f-' + r.st.tone + '" style="width:' + w + '%"></span><span class="mark" style="left:' + markPct + '%"></span></span>' +
         '<span class="val">' + f0(r.dose) + '%<small>' + f1(r.twa) + ' dBA</small></span>' +
