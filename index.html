@@ -348,7 +348,7 @@
     dose: {
       head: "Exposure controls when the dose is over the limit, in order of preference:",
       items: function () { return [
-        "Substitute: replace the noisy process or equipment with a quieter one (quieter tool models, larger slower fans, rubber or plastic instead of metal-on-metal contact, electric tools in place of pneumatic).",
+        "Substitute: replace the noisy process or equipment with a quieter one (quieter tool models, larger, slower fans, rubber or plastic instead of metal-on-metal contact, electric tools in place of pneumatic).",
         "Engineering at the source: maintain equipment (worn bearings, loose guards, unbalanced fans), fit mufflers or silencers on air exhausts and pneumatic tools, use low-noise air nozzles, damp vibrating panels and chutes, use vibration isolation mounts.",
         "Engineering along the path: enclose the source, put barriers between the source and the worker, add sound-absorbing material to walls and ceilings, increase distance.",
         "Administrative: rotate workers between noisy and quiet tasks, schedule the noisiest work when fewer people are nearby, provide quiet break areas, post high-noise areas.",
@@ -370,7 +370,7 @@
     tasks: {
       head: "Exposure controls for a multi-task shift, in order of preference. Start with the task that has the largest partial dose:",
       items: function () { return [
-        "Substitute that task's tool or process for a quieter one (quieter tool models, electric in place of pneumatic, rubber or plastic in place of metal-on-metal contact).",
+        "Substitute that task’s tool or process for a quieter one (quieter tool models, electric in place of pneumatic, rubber or plastic in place of metal-on-metal contact).",
         "Engineering at the source of that task: maintenance (worn bearings, loose guards), mufflers on air exhausts, low-noise nozzles, damped panels, vibration mounts.",
         "Engineering along the path: enclose the source, add barriers, increase the distance between the worker and the noise.",
         "Cut the minutes on the high-dose tasks: split them between workers, rotate people out, or move them to a time when fewer people are nearby. Adding quiet time does not lower the dose; only reducing time at the noisy tasks does.",
@@ -395,7 +395,7 @@
     var r = round1(dose);
     if (state.method === "OSHA") {
       if (r >= 100) return { label: "Over the PEL", tone: "red", over: true, action: false };
-      if (r >= 50) return { label: "Above action level - hearing conservation program required", tone: "amber", over: false, action: true };
+      if (r >= 50) return { label: "Above action level – hearing conservation program required", tone: "amber", over: false, action: true };
       return { label: "Below action level", tone: "green", over: false, action: false };
     }
     if (r > 100) return { label: "Over the REL", tone: "red", over: true, action: false };
@@ -500,7 +500,7 @@
     if (rows.some(function (r) { return r.st.over; })) {
       msg += "Shift lengths marked over the limit need engineering or administrative controls, a shorter shift, or hearing protection in the meantime. See the controls listed below.";
     } else if (rows.some(function (r) { return r.st.action; })) {
-      msg += "No shift length is over the PEL, but those above the action level require a hearing conservation program (audiometric testing, training, and hearing protection made available).";
+      msg += "No shift length is over the PEL, but those above the action level require a hearing conservation program (audiometric testing, training and hearing protection made available).";
     } else {
       msg += "All three shift lengths are under the limit.";
     }
@@ -510,7 +510,7 @@
 
   function renderDose() {
     var D = num($("d-dose"));
-    els.lead.textContent = "Dose already accounts for shift length, so the TWA is the 8-hour equivalent whatever the shift length was.";
+    els.lead.textContent = "Dose already accounts for shift length, so the TWA is the 8-hour equivalent, whatever the shift length was.";
     els.extra.innerHTML = "";
     if (D === null || D <= 0) {
       setPill(undefined);
@@ -526,7 +526,7 @@
     var d0 = f0(D), x = f1(D / 100), t = f1(twa), msg;
     if (state.method === "OSHA") {
       if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the OSHA daily allowance, so the 8-hour TWA of " + t + " dBA is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection until they bring the exposure under the PEL. See the controls listed below.";
-      else if (st.action) msg = "A dose of " + d0 + "% is between 50% and 100%, so the 8-hour TWA of " + t + " dBA is at or above the 85 dBA action level but under the 90 dBA PEL. The worker must be in a hearing conservation program: audiometric testing, training, and hearing protection made available. Controls are not required at this level but will lower the risk.";
+      else if (st.action) msg = "A dose of " + d0 + "% is between 50% and 100%, so the 8-hour TWA of " + t + " dBA is at or above the 85 dBA action level but under the 90 dBA PEL. The worker must be in a hearing conservation program: audiometric testing, training and hearing protection made available. Controls are not required at this level but will lower the risk.";
       else msg = "A dose of " + d0 + "% is under 50%, so the 8-hour TWA of " + t + " dBA is below the 85 dBA action level. No action is required under OSHA. Re-check if the process or equipment changes.";
     } else {
       if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the NIOSH daily allowance, so the 8-hour TWA of " + t + " dBA is over the 85 dBA REL. NIOSH recommends reducing the exposure with engineering and administrative controls and using hearing protection until that is done. See the controls listed below.";
@@ -548,7 +548,7 @@
       return;
     }
     var T = timeAllowed(L);
-    var msg = "At " + f0(L) + " dBA a worker reaches 100% of the " + m().limit + " after ";
+    var msg = "At " + f0(L) + " dBA, a worker reaches 100% of the " + m().limit + " after ";
     if (T >= 24) {
       setBig("24+", "hours", false);
       els.lead.textContent = "More than 1,440 minutes to reach 100% dose.";
@@ -559,7 +559,7 @@
       msg += f1(T) + " hours (" + f0(T * 60) + " minutes). ";
       msg += T < 8
         ? "Time at this level beyond that has to be cut: rotate workers out, quiet or enclose the source, or use hearing protection until that is done. See the controls listed below."
-        : "That covers a full 8-hour shift, but other noisy tasks in the same shift still add to the dose. Use the Shift dose from tasks calculator to total them.";
+        : "That covers a full 8-hour shift, but other noisy tasks in the same shift still add to the dose. Use the “Shift dose from tasks” calculator to total them.";
     }
     els.msg.textContent = msg;
     setControls(true);
