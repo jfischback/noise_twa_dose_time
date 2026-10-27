@@ -465,7 +465,7 @@
     if (twa === null) {
       setPill(undefined);
       setBig("–", "%", true);
-      els.lead.textContent = "Dose for a " + S + "-hour shift.";
+      els.lead.textContent = "Dose for " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
       els.extra.innerHTML = "";
       els.msg.textContent = "Enter a TWA to see the table.";
       setControls(false);
@@ -479,7 +479,7 @@
     var picked = rows.filter(function (r) { return r.h === S; })[0];
     setPill(picked.st);
     setBig(f0(picked.dose), "%", false);
-    els.lead.textContent = "Dose if the same noise continued for a " + S + "-hour shift.";
+    els.lead.textContent = "Dose if the same noise continued for " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
 
     var maxDose = Math.max.apply(null, rows.map(function (r) { return r.dose; }));
     var scale = Math.max(150, maxDose * 1.15);
