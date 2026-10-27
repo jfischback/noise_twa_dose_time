@@ -39,16 +39,28 @@
   }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 0 34px; }
 
-  /* Header */
-  .top { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-  .brand svg { display: block; }
-  .top-right { font-size: 13px; color: #55595e; }
+  /* Header banner */
+  .banner {
+    position: relative; overflow: hidden; color: #fff;
+    background:
+      linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px) right top / 48px 48px,
+      linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px) right top / 48px 48px,
+      linear-gradient(100deg, #071433 0%, #0b2554 45%, #13497f 80%, #175b92 100%);
+    box-shadow: 0 6px 18px rgba(7, 20, 51, .18);
+  }
+  .banner::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+    background: linear-gradient(90deg, #22c3e6 0%, #4f7be8 45%, #7b5cf0 60%, #22c3e6 100%);
+  }
+  .banner-in { display: flex; justify-content: space-between; align-items: center; gap: 28px; padding: 30px 34px 34px; max-width: 1180px; margin: 0 auto; }
+  .banner-name { font-size: 44px; line-height: 1; font-weight: 700; letter-spacing: -0.04em; }
+  .banner-sub { font-size: 12.5px; font-weight: 500; letter-spacing: .24em; color: #c6d2e8; margin-top: 10px; }
+  .banner-tag { font-size: 15.5px; font-weight: 500; color: #b9cdea; border-left: 1px solid rgba(255, 255, 255, .22); padding: 6px 0 6px 28px; }
 
   /* Hero */
   h1 {
     font-size: 54px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 600;
-    margin: 66px 0 22px; max-width: 700px;
+    margin: 56px 0 22px; max-width: 700px;
   }
   .sub { font-size: 16.5px; line-height: 1.6; color: #5a5f65; max-width: 580px; margin: 0 0 40px; }
 
@@ -200,6 +212,10 @@
 
   @media (max-width: 800px) {
     .wrap { padding: 0 16px; }
+    .banner-in { flex-direction: column; align-items: flex-start; gap: 14px; padding: 22px 16px 26px; }
+    .banner-name { font-size: 34px; }
+    .banner-sub { font-size: 10px; letter-spacing: .1em; }
+    .banner-tag { font-size: 14px; border-left: 0; padding: 0; }
     h1 { font-size: 38px; margin-top: 40px; }
     .sub { font-size: 15px; margin-bottom: 28px; }
     .grid { grid-template-columns: 1fr; }
@@ -221,17 +237,16 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-        <rect width="22" height="22" rx="6" fill="#111315"/>
-        <path d="M14.6 7.6a4.6 4.6 0 1 0 0 6.8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      OEMS
+<header class="banner">
+  <div class="banner-in">
+    <div>
+      <div class="banner-name">OEMS</div>
+      <div class="banner-sub">OCCUPATIONAL EXPOSURE MANAGEMENT SYSTEMS LLC</div>
     </div>
-    <div class="top-right">Hearing conservation program</div>
-  </header>
+    <div class="banner-tag">Exposure assessment tools for Health &amp; Safety Professionals</div>
+  </div>
+</header>
+<div class="wrap">
 
   <h1>Noise Exposure Calculator</h1>
   <p class="sub">Convert noise measurements to 8-hour TWA, percent dose and allowable exposure time under OSHA or NIOSH criteria, with controls guidance when limits are exceeded.</p>
