@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noise dose and TWA calculator | OEMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef0f3;
+    --ink: #111315;
+    --muted: #6b7076;
+    --soft: #8a8f95;
+    --line: #e6e8eb;
+    --field: #f1f2f4;
+    --track: #eceef1;
+    --focus: #4f5bd5;
+    --dark: #16181b;
+    --dark-line: #2b2e33;
+    --dark-muted: #9a9fa6;
+    --dark-track: #2a2d32;
+    --green: #34d399;
+    --green-ink: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #6b72ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 34px; }
+
+  /* Header */
+  .top { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .brand svg { display: block; }
+  .top-right { font-size: 13px; color: #55595e; }
+
+  /* Hero */
+  h1 {
+    font-size: 54px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 600;
+    margin: 66px 0 22px; max-width: 700px;
+  }
+  .sub { font-size: 16.5px; line-height: 1.6; color: #5a5f65; max-width: 580px; margin: 0 0 40px; }
+
+  /* Layout */
+  .grid { display: grid; grid-template-columns: minmax(0, 1.49fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 30px 32px 34px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .04);
+  }
+  .result {
+    background: var(--dark); color: #fff; border-radius: 18px; padding: 30px 32px 30px;
+    box-shadow: 0 24px 48px rgba(16, 24, 40, .22), 0 4px 12px rgba(16, 24, 40, .12);
+  }
+
+  /* Fields */
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; padding-top: 4px; }
+  .row.full { grid-template-columns: 1fr; }
+  .label { font-weight: 600; font-size: 13px; margin: 0 0 2px; }
+  .label .opt { font-weight: 400; color: var(--muted); }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+  .note { font-size: 12.5px; color: var(--soft); margin: 10px 0 0; }
+
+  .input {
+    position: relative; display: flex; align-items: center;
+    background: var(--field); border: 1.5px solid transparent; border-radius: 10px;
+    height: 46px; padding: 0 16px; transition: border-color .15s, background .15s;
+  }
+  .input:focus-within { background: #fff; border-color: var(--focus); box-shadow: 0 0 0 3px rgba(79, 91, 213, .08); }
+  .input input {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 16px; color: var(--ink); padding: 0;
+  }
+  .input input::placeholder { color: #a3a8ae; }
+  .input .unit { font-size: 12.5px; color: var(--muted); margin-left: 8px; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+  .seg {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    background: var(--track); border-radius: 10px; padding: 4px; gap: 4px;
+  }
+  .seg button {
+    appearance: none; border: 0; background: transparent; font: inherit; font-size: 13.5px;
+    color: #4d5257; height: 38px; border-radius: 7px; cursor: pointer; padding: 0 8px;
+    transition: background .15s, color .15s, box-shadow .15s;
+  }
+  .seg.calc button { font-size: 13px; padding: 0 4px; white-space: nowrap; }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] {
+    background: #fff; color: var(--ink); font-weight: 500;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .08), 0 1px 6px rgba(16, 24, 40, .06);
+  }
+  .seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  /* Task table */
+  .tasks { width: 100%; }
+  .tasks-head, .task {
+    display: grid; grid-template-columns: 22px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 68px;
+    gap: 10px; align-items: center;
+  }
+  .tasks-head { font-size: 12px; color: var(--muted); padding: 0 0 8px; }
+  .tasks-head span:last-child { text-align: right; }
+  .task { padding: 4px 0; }
+  .task .n { font-size: 12px; color: var(--soft); text-align: center; }
+  .task .input { height: 40px; padding: 0 12px; border-radius: 8px; }
+  .task .input input { font-size: 14px; }
+  .task .pd { text-align: right; font-size: 13.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .task .pd.empty { color: #b3b7bc; font-weight: 400; }
+  .tasks-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 12px; }
+  .tasks-foot .note { margin: 0; max-width: 440px; }
+  .link {
+    appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px;
+    color: var(--focus); cursor: pointer; white-space: nowrap;
+  }
+  .link:hover { text-decoration: underline; }
+
+  /* Results */
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;
+    padding: 6px 12px 6px 11px; border-radius: 999px; max-width: 100%;
+  }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .pill.green { background: rgba(52, 211, 153, .13); color: var(--green-ink); }
+  .pill.amber { background: rgba(251, 191, 36, .14); color: var(--amber); }
+  .pill.red { background: rgba(248, 113, 113, .15); color: var(--red); }
+  .pill.gray { background: rgba(255, 255, 255, .07); color: var(--dark-muted); }
+  .big { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 8px; flex-wrap: wrap; }
+  .big .num { font-size: 92px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+  .big .num.md { font-size: 68px; }
+  .big .num.sm { font-size: 46px; }
+  .big .num.empty { color: #4a4e54; }
+  .big .u { font-size: 19px; color: #c9ccd0; }
+  .lead { font-size: 14px; line-height: 1.6; color: #c9ccd0; margin: 0; max-width: 340px; }
+
+  .bars { margin-top: 30px; padding-bottom: 24px; border-bottom: 1px solid var(--dark-line); }
+  .bars-cap { position: relative; height: 18px; margin-left: 108px; margin-right: 64px; }
+  .bars-cap span { position: absolute; transform: translateX(-50%); font-size: 11.5px; color: #c9ccd0; white-space: nowrap; }
+  .bar-row { display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; padding: 7px 0; }
+  .bar-row .name { font-size: 12.5px; color: #c9ccd0; }
+  .bar-row .st { display: block; font-size: 11px; margin-top: 2px; line-height: 1.3; }
+  .bar-row .val { text-align: right; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bar-row .val small { display: block; font-size: 11px; font-weight: 400; color: var(--dark-muted); }
+  .track { position: relative; height: 8px; border-radius: 99px; background: var(--dark-track); margin-right: 14px; }
+  .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; transition: width .2s; }
+  .mark { position: absolute; top: -16px; bottom: -16px; border-left: 1px dashed rgba(255, 255, 255, .35); }
+  .t-green { color: var(--green-ink); } .f-green { background: var(--green); }
+  .t-amber { color: var(--amber); } .f-amber { background: var(--amber); }
+  .t-red { color: var(--red); } .f-red { background: var(--red); }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--dark-line); }
+  .split > div { padding: 22px 0 18px; }
+  .split > div + div { border-left: 1px solid var(--dark-line); padding-left: 24px; }
+  .split.one { grid-template-columns: 1fr; }
+  .stat-k { font-size: 12.5px; color: #c9ccd0; margin: 0 0 6px; }
+  .stat-v { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat-v small { font-size: 12px; font-weight: 400; color: var(--dark-muted); margin-left: 4px; letter-spacing: 0; }
+  .first-sep { margin-top: 30px; border-top: 1px solid var(--dark-line); }
+
+  .msg { font-size: 12.5px; line-height: 1.6; color: var(--dark-muted); margin: 18px 0 0; }
+
+  details.controls { margin-top: 18px; border-top: 1px solid var(--dark-line); padding-top: 14px; }
+  details.controls summary {
+    list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; font-weight: 500; color: #e3e5e8;
+  }
+  details.controls summary::-webkit-details-marker { display: none; }
+  details.controls summary::after {
+    content: ""; width: 7px; height: 7px; border-right: 1.5px solid #9a9fa6; border-bottom: 1.5px solid #9a9fa6;
+    transform: rotate(45deg); margin: -3px 4px 0 0; transition: transform .15s;
+  }
+  details.controls[open] summary::after { transform: rotate(-135deg); margin-top: 3px; }
+  details.controls summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+  .controls p { font-size: 12.5px; color: #c9ccd0; margin: 12px 0 8px; line-height: 1.5; }
+  .controls ul { margin: 0; padding: 0 0 0 16px; }
+  .controls li { font-size: 12.5px; line-height: 1.55; color: var(--dark-muted); margin: 0 0 7px; }
+
+  [hidden] { display: none !important; }
+
+  footer { padding: 56px 0 40px; }
+  footer p { font-size: 12.5px; line-height: 1.6; color: #5a5f65; max-width: 780px; margin: 0; }
+
+  @media (max-width: 800px) {
+    .wrap { padding: 0 16px; }
+    h1 { font-size: 38px; margin-top: 40px; }
+    .sub { font-size: 15px; margin-bottom: 28px; }
+    .grid { grid-template-columns: 1fr; }
+    .card, .result { padding: 24px 20px; }
+    .row { grid-template-columns: 1fr; gap: 22px; }
+    .seg.calc { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+    .big .num { font-size: 76px; }
+  }
+  @media (max-width: 480px) {
+    .tasks-head, .task { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: 6px; }
+    .tasks-head span:first-child, .task .n { display: none; }
+    .task .input { padding: 0 8px; }
+    .task .input .unit { display: none; }
+    .tasks-foot { flex-direction: column; }
+    .bar-row { grid-template-columns: 92px 1fr 58px; }
+    .bars-cap { margin-left: 92px; margin-right: 58px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+        <rect width="22" height="22" rx="6" fill="#111315"/>
+        <path d="M14.6 7.6a4.6 4.6 0 1 0 0 6.8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      OEMS
+    </div>
+    <div class="top-right">Hearing conservation program</div>
+  </header>
+
+  <h1>Noise dose and TWA calculator.</h1>
+  <p class="sub">Pick a calculation, enter what you measured, and get the TWA, dose and status under OSHA or NIOSH.</p>
+
+  <div class="grid">
+    <!-- Inputs -->
+    <section class="card" aria-label="Inputs">
+      <div class="row full">
+        <div>
+          <p class="label">Method</p>
+          <div class="seg" id="method" role="group" aria-label="Method">
+            <button type="button" data-v="OSHA">OSHA</button>
+            <button type="button" data-v="NIOSH">NIOSH</button>
+          </div>
+          <p class="note">OSHA: 90 dBA PEL, 85 dBA action level, 5 dB exchange rate. NIOSH: 85 dBA REL, 3 dB exchange rate.</p>
+        </div>
+      </div>
+      <div class="row full">
+        <div>
+          <p class="label">Calculation</p>
+          <div class="seg calc" id="calc" role="group" aria-label="Calculation">
+            <button type="button" data-v="shift">Shift converter</button>
+            <button type="button" data-v="dose">Dose to TWA</button>
+            <button type="button" data-v="time">Time allowed</button>
+            <button type="button" data-v="tasks">Shift dose from tasks</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. Shift converter -->
+      <div class="row" data-calc="shift">
+        <div>
+          <p class="label">TWA noise level</p>
+          <p class="hint">From dosimetry.</p>
+          <label class="input"><input type="number" step="any" inputmode="decimal" id="s-twa" placeholder="Enter TWA" aria-label="TWA noise level"><span class="unit">dBA</span></label>
+        </div>
+        <div>
+          <p class="label">Shift length</p>
+          <p class="hint">Hours the TWA covers.</p>
+          <div class="seg" id="s-len" role="group" aria-label="Shift length">
+            <button type="button" data-v="8">8 hr</button>
+            <button type="button" data-v="10">10 hr</button>
+            <button type="button" data-v="12">12 hr</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Dose to TWA -->
+      <div class="row" data-calc="dose">
+        <div>
+          <p class="label">Noise dose</p>
+          <p class="hint">From dosimetry.</p>
+          <label class="input"><input type="number" step="any" inputmode="decimal" id="d-dose" placeholder="Enter dose" aria-label="Noise dose"><span class="unit">%</span></label>
+        </div>
+      </div>
+
+      <!-- 3. Time allowed -->
+      <div class="row" data-calc="time">
+        <div>
+          <p class="label">Measured level</p>
+          <p class="hint">Sound level at the task.</p>
+          <label class="input"><input type="number" step="any" inputmode="decimal" id="t-level" placeholder="Enter level" aria-label="Measured level"><span class="unit">dBA</span></label>
+        </div>
+      </div>
+
+      <!-- 4. Shift dose from tasks -->
+      <div class="row full" data-calc="tasks">
+        <div class="tasks">
+          <div class="tasks-head"><span></span><span>Task (optional)</span><span>Level</span><span>Duration</span><span>Partial dose</span></div>
+          <div id="task-rows"></div>
+          <div class="tasks-foot">
+            <p class="note">Partial dose = task duration / time allowed at that level. OSHA: time below 80 dBA counts as zero. NIOSH: all time counts.</p>
+            <button type="button" class="link" id="clear">Clear all</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="result" aria-live="polite" aria-label="Results">
+      <span class="pill gray" id="pill">Waiting for input</span>
+      <div class="big"><span class="num" id="num">&ndash;</span><span class="u" id="unit"></span></div>
+      <p class="lead" id="lead"></p>
+      <div id="extra"></div>
+      <p class="msg" id="msg"></p>
+      <details class="controls" id="controls">
+        <summary>Exposure controls</summary>
+        <p id="c-head"></p>
+        <ul id="c-list"></ul>
+      </details>
+    </section>
+  </div>
+
+  <footer>
+    <p>This tool supports your professional judgment and does not replace it. Sources: OSHA 29 CFR 1910.95 and Appendix A; NIOSH Criteria for a Recommended Standard: Occupational Noise Exposure (1998).</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var METHODS = {
+    OSHA: { C: 90, ER: 5, threshold: 80, limit: "OSHA PEL", limitLong: "OSHA PEL (90 dBA)" },
+    NIOSH: { C: 85, ER: 3, threshold: null, limit: "NIOSH REL", limitLong: "NIOSH REL (85 dBA)" }
+  };
+  var TASK_ROWS = 8;
+  var state = { method: "NIOSH", calc: "shift", shift: 8 };
+
+  var CONTROLS = {
+    shift: {
+      head: "Exposure controls for extended shifts, in order of preference:",
+      items: function () { return [
+        "Shorten the time at the noisy task: rotate workers between noisy and quiet jobs so no one carries the whole 10- or 12-hour dose.",
+        "Group the noisy work into one block and keep the rest of the shift quiet, rather than spreading it across the whole day.",
+        "Quiet the source: maintain equipment (worn bearings, loose guards, unbalanced fans), fit mufflers on air exhausts, damp vibrating panels, set machines on vibration mounts.",
+        "Enclose the source or add barriers, and increase distance (roughly 6 dB lower per doubling of distance in open areas).",
+        "Hearing protection with enough attenuation for the full shift, double protection (plugs under muffs) above about 100 dBA, until the controls above are in place.",
+        "Measure again after any change to confirm the dose dropped."
+      ]; }
+    },
+    dose: {
+      head: "Exposure controls when the dose is over the limit, in order of preference:",
+      items: function () { return [
+        "Substitute: replace the noisy process or equipment with a quieter one (quieter tool models, larger slower fans, rubber or plastic instead of metal-on-metal contact, electric tools in place of pneumatic).",
+        "Engineering at the source: maintain equipment (worn bearings, loose guards, unbalanced fans), fit mufflers or silencers on air exhausts and pneumatic tools, use low-noise air nozzles, damp vibrating panels and chutes, use vibration isolation mounts.",
+        "Engineering along the path: enclose the source, put barriers between the source and the worker, add sound-absorbing material to walls and ceilings, increase distance.",
+        "Administrative: rotate workers between noisy and quiet tasks, schedule the noisiest work when fewer people are nearby, provide quiet break areas, post high-noise areas.",
+        "Hearing protection: fit-tested plugs or muffs with enough attenuation, double protection above about 100 dBA. It only works for the time it is worn, so a short unprotected period undoes much of the benefit.",
+        "Measure again after any change to confirm the dose dropped."
+      ]; }
+    },
+    time: {
+      head: "Exposure controls when time at this level has to be limited, in order of preference:",
+      items: function (m) { return [
+        "Lower the level at the source: every " + METHODS[m].ER + " dB reduction doubles the allowed time under " + m + ". Maintenance, mufflers on air exhausts, low-noise nozzles, damped panels and vibration mounts are the usual first steps.",
+        "Enclose the source or add a barrier, or move the worker farther away (roughly 6 dB lower per doubling of distance in open areas).",
+        "Treat the allowed time as a daily budget: split the task between workers, or rotate them out before the time is used up, and keep the rest of their shift quiet.",
+        "Change how the work is done: lower air pressure on blow-off nozzles, reduce drop heights, slow line speeds, keep enclosure doors closed.",
+        "Hearing protection with enough attenuation for the measured level, double protection above about 100 dBA, until the controls above are in place.",
+        "Measure again after any change to confirm the dose dropped."
+      ]; }
+    },
+    tasks: {
+      head: "Exposure controls for a multi-task shift, in order of preference. Start with the task that has the largest partial dose:",
+      items: function () { return [
+        "Substitute that task's tool or process for a quieter one (quieter tool models, electric in place of pneumatic, rubber or plastic in place of metal-on-metal contact).",
+        "Engineering at the source of that task: maintenance (worn bearings, loose guards), mufflers on air exhausts, low-noise nozzles, damped panels, vibration mounts.",
+        "Engineering along the path: enclose the source, add barriers, increase the distance between the worker and the noise.",
+        "Cut the minutes on the high-dose tasks: split them between workers, rotate people out, or move them to a time when fewer people are nearby. Adding quiet time does not lower the dose; only reducing time at the noisy tasks does.",
+        "Hearing protection with enough attenuation for the loudest task, double protection above about 100 dBA, worn for the whole task, until the controls above are in place.",
+        "Re-enter the task list after any change to confirm the total dose dropped."
+      ]; }
+    }
+  };
+
+  // ---- Formulas (full precision) ----
+  function m() { return METHODS[state.method]; }
+  function timeAllowed(L) { return 8 / Math.pow(2, (L - m().C) / m().ER); }
+  function doseFromTwa(twa) { return 100 * Math.pow(2, (twa - m().C) / m().ER); }
+  function twaFromDose(d) { return m().C + m().ER * Math.log2(d / 100); }
+  function twaAtShift(twa, s, sEntered) { return twa + m().ER * Math.log2(s / sEntered); }
+  function partialDose(L, minutes) {
+    if (state.method === "OSHA" && L < METHODS.OSHA.threshold) return 0;
+    return 100 * (minutes / 60) / timeAllowed(L);
+  }
+  function round1(x) { return Math.round(x * 10) / 10; }
+  function status(dose) {
+    var r = round1(dose);
+    if (state.method === "OSHA") {
+      if (r >= 100) return { label: "Over the PEL", tone: "red", over: true, action: false };
+      if (r >= 50) return { label: "Above action level - hearing conservation program required", tone: "amber", over: false, action: true };
+      return { label: "Below action level", tone: "green", over: false, action: false };
+    }
+    if (r > 100) return { label: "Over the REL", tone: "red", over: true, action: false };
+    return { label: "At or under the REL", tone: "green", over: false, action: false };
+  }
+
+  // ---- Display formatting ----
+  function f1(x) { return x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function f0(x) { return x.toLocaleString("en-US", { maximumFractionDigits: 0 }); }
+  function num(el) {
+    var v = el.value.trim();
+    if (v === "") return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
+  // ---- DOM ----
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    pill: $("pill"), num: $("num"), unit: $("unit"), lead: $("lead"), extra: $("extra"),
+    msg: $("msg"), controls: $("controls"), cHead: $("c-head"), cList: $("c-list")
+  };
+
+  function setSeg(group, value) {
+    group.querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === String(value)));
+    });
+  }
+  function bindSeg(id, onPick) {
+    var g = $(id);
+    g.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (b) onPick(b.dataset.v);
+    });
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function setBig(text, unit, empty) {
+    els.num.textContent = text;
+    els.num.className = "num" + (empty ? " empty" : "") + (text.length > 7 ? " sm" : text.length > 5 ? " md" : "");
+    els.unit.textContent = empty ? "" : unit;
+  }
+  function setPill(st) {
+    if (st === null) { els.pill.hidden = true; return; }
+    els.pill.hidden = false;
+    if (!st) { els.pill.className = "pill gray"; els.pill.textContent = "Waiting for input"; return; }
+    els.pill.className = "pill " + st.tone;
+    els.pill.textContent = st.label;
+  }
+  function setControls(show) {
+    els.controls.hidden = !show;
+    if (!show) return;
+    var c = CONTROLS[state.calc];
+    els.cHead.textContent = c.head;
+    els.cList.innerHTML = c.items(state.method).map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
+  }
+
+  // ---- Calculators ----
+  function renderShift() {
+    var twa = num($("s-twa"));
+    var S = state.shift;
+    if (twa === null) {
+      setPill(undefined);
+      setBig("–", "%", true);
+      els.lead.textContent = "Dose if the same noise continued for 12 hours.";
+      els.extra.innerHTML = "";
+      els.msg.textContent = "Enter a TWA to see the table.";
+      setControls(false);
+      return;
+    }
+    var rows = [8, 10, 12].map(function (h) {
+      var t = twaAtShift(twa, h, S);
+      var d = doseFromTwa(t);
+      return { h: h, twa: t, dose: d, st: status(d) };
+    });
+    var last = rows[2];
+    setPill(last.st);
+    setBig(f0(last.dose), "%", false);
+    els.lead.textContent = "Dose if the same noise continued for 12 hours.";
+
+    var maxDose = Math.max.apply(null, rows.map(function (r) { return r.dose; }));
+    var scale = Math.max(150, maxDose * 1.15);
+    var markPct = 100 / scale * 100;
+    var html = '<div class="bars"><div class="bars-cap"><span style="left:' + markPct + '%">Limit 100%</span></div>';
+    rows.forEach(function (r) {
+      var w = Math.max(0, Math.min(100, r.dose / scale * 100));
+      html += '<div class="bar-row">' +
+        '<span class="name">' + r.h + ' hours<span class="st t-' + r.st.tone + '">' + esc(r.st.label) + '</span></span>' +
+        '<span class="track"><span class="fill f-' + r.st.tone + '" style="width:' + w + '%"></span><span class="mark" style="left:' + markPct + '%"></span></span>' +
+        '<span class="val">' + f0(r.dose) + '%<small>' + f1(r.twa) + ' dBA</small></span>' +
+        '</div>';
+    });
+    html += "</div>";
+    els.extra.innerHTML = html;
+
+    var msg = "The " + f1(twa) + " dBA TWA you entered covers a shift of " + S + " hours. The table shows the equivalent TWA and dose if that same noise continued for 8, 10 and 12 hours. Dose is what compliance is based on: 100% is the " + m().limitLong + ". ";
+    if (rows.some(function (r) { return r.st.over; })) {
+      msg += "Shift lengths marked over the limit need engineering or administrative controls, a shorter shift, or hearing protection in the meantime. See the controls listed below.";
+    } else if (rows.some(function (r) { return r.st.action; })) {
+      msg += "No shift length is over the PEL, but those above the action level require a hearing conservation program (audiometric testing, training, and hearing protection made available).";
+    } else {
+      msg += "All three shift lengths are under the limit.";
+    }
+    els.msg.textContent = msg;
+    setControls(true);
+  }
+
+  function renderDose() {
+    var D = num($("d-dose"));
+    els.lead.textContent = "Dose already accounts for shift length, so the TWA is the 8-hour equivalent whatever the shift length was.";
+    els.extra.innerHTML = "";
+    if (D === null || D <= 0) {
+      setPill(undefined);
+      setBig("–", "dBA", true);
+      els.msg.textContent = "Enter a dose.";
+      setControls(false);
+      return;
+    }
+    var twa = twaFromDose(D);
+    var st = status(D);
+    setPill(st);
+    setBig(f1(twa), "dBA", false);
+    var d0 = f0(D), x = f1(D / 100), t = f1(twa), msg;
+    if (state.method === "OSHA") {
+      if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the OSHA daily allowance, so the 8-hour TWA of " + t + " dBA is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection until they bring the exposure under the PEL. See the controls listed below.";
+      else if (st.action) msg = "A dose of " + d0 + "% is between 50% and 100%, so the 8-hour TWA of " + t + " dBA is at or above the 85 dBA action level but under the 90 dBA PEL. The worker must be in a hearing conservation program: audiometric testing, training, and hearing protection made available. Controls are not required at this level but will lower the risk.";
+      else msg = "A dose of " + d0 + "% is under 50%, so the 8-hour TWA of " + t + " dBA is below the 85 dBA action level. No action is required under OSHA. Re-check if the process or equipment changes.";
+    } else {
+      if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the NIOSH daily allowance, so the 8-hour TWA of " + t + " dBA is over the 85 dBA REL. NIOSH recommends reducing the exposure with engineering and administrative controls and using hearing protection until that is done. See the controls listed below.";
+      else msg = "A dose of " + d0 + "% is at or under 100%, so the 8-hour TWA of " + t + " dBA is at or under the 85 dBA REL. NIOSH still recommends a hearing loss prevention program for workers whose exposures approach the REL.";
+    }
+    els.msg.textContent = msg;
+    setControls(true);
+  }
+
+  function renderTime() {
+    var L = num($("t-level"));
+    setPill(null);
+    els.extra.innerHTML = "";
+    if (L === null) {
+      setBig("–", "hours", true);
+      els.lead.textContent = "Time allowed to reach 100% dose.";
+      els.msg.textContent = "Enter a measured level.";
+      setControls(false);
+      return;
+    }
+    var T = timeAllowed(L);
+    var msg = "At " + f0(L) + " dBA a worker reaches 100% of the " + m().limit + " after ";
+    if (T >= 24) {
+      setBig("24+", "hours", false);
+      els.lead.textContent = "More than 1,440 minutes to reach 100% dose.";
+      msg += "more than 24 hours, so this level on its own will not exceed the limit in any shift.";
+    } else {
+      setBig(f1(T), "hours", false);
+      els.lead.textContent = f0(T * 60) + " minutes to reach 100% dose.";
+      msg += f1(T) + " hours (" + f0(T * 60) + " minutes). ";
+      msg += T < 8
+        ? "Time at this level beyond that has to be cut: rotate workers out, quiet or enclose the source, or use hearing protection until that is done. See the controls listed below."
+        : "That covers a full 8-hour shift, but other noisy tasks in the same shift still add to the dose. Use the Shift dose from tasks calculator to total them.";
+    }
+    els.msg.textContent = msg;
+    setControls(true);
+  }
+
+  function renderTasks() {
+    var total = 0, counted = 0, best = null;
+    taskEls.forEach(function (r, i) {
+      var L = num(r.level), M = num(r.min);
+      if (L === null || M === null) {
+        r.pd.textContent = "–";
+        r.pd.className = "pd empty";
+        return;
+      }
+      var p = partialDose(L, M);
+      r.pd.textContent = f1(p) + "%";
+      r.pd.className = "pd";
+      total += p;
+      counted++;
+      if (best === null || p > best.p) best = { p: p, i: i, name: r.name.value.trim() };
+    });
+
+    els.extra.innerHTML = "";
+    if (!counted) {
+      setPill(undefined);
+      setBig("–", "%", true);
+      els.lead.textContent = "Total dose for the shift.";
+      els.msg.textContent = "Enter at least one task with a level and a duration.";
+      setControls(false);
+      return;
+    }
+    var st = status(total);
+    var twa = total > 0 ? twaFromDose(total) : null;
+    var twaText = twa === null ? "n/a" : f1(twa);
+    setPill(st);
+    setBig(f0(total), "%", false);
+    els.lead.textContent = "Total dose for the shift.";
+    els.extra.innerHTML = '<div class="split one first-sep"><div><p class="stat-k">8-hour TWA</p><div class="stat-v">' + twaText + (twa === null ? "" : "<small>dBA</small>") + "</div></div></div>";
+
+    var msg = "The total dose for the shift is " + f0(total) + "%, which equals an 8-hour TWA of " + twaText + " dBA. ";
+    if (state.method === "OSHA") {
+      if (st.over) msg += "That is over the 90 dBA PEL, so feasible engineering or administrative controls are required, with hearing protection in the meantime.";
+      else if (st.action) msg += "That is at or above the 85 dBA action level but under the PEL, so a hearing conservation program is required.";
+      else msg += "That is below the 85 dBA action level; no action is required under OSHA.";
+    } else {
+      if (st.over) msg += "That is over the 85 dBA NIOSH REL, so NIOSH recommends engineering and administrative controls, with hearing protection until the exposure is reduced.";
+      else msg += "That is at or under the 85 dBA NIOSH REL.";
+    }
+    var who = best.name || "the task in row " + (best.i + 1);
+    msg += " The largest contributor is " + who + " at " + f0(best.p) + "% of the daily allowance on its own, so controls on that task make the biggest difference.";
+    if (st.over) msg += " See the controls listed below.";
+    els.msg.textContent = msg;
+    setControls(true);
+  }
+
+  var RENDER = { shift: renderShift, dose: renderDose, time: renderTime, tasks: renderTasks };
+  function render() {
+    setSeg($("method"), state.method);
+    setSeg($("calc"), state.calc);
+    setSeg($("s-len"), state.shift);
+    document.querySelectorAll("[data-calc]").forEach(function (el) {
+      el.hidden = el.dataset.calc !== state.calc;
+    });
+    RENDER[state.calc]();
+  }
+
+  // ---- Task rows ----
+  var taskEls = [];
+  var rowsHost = $("task-rows");
+  for (var i = 0; i < TASK_ROWS; i++) {
+    var row = document.createElement("div");
+    row.className = "task";
+    row.innerHTML =
+      '<span class="n">' + (i + 1) + "</span>" +
+      '<label class="input"><input type="text" placeholder="Task" aria-label="Task ' + (i + 1) + ' name"></label>' +
+      '<label class="input"><input type="number" step="any" inputmode="decimal" aria-label="Task ' + (i + 1) + ' level"><span class="unit">dBA</span></label>' +
+      '<label class="input"><input type="number" step="any" inputmode="decimal" min="0" aria-label="Task ' + (i + 1) + ' duration"><span class="unit">min</span></label>' +
+      '<span class="pd empty">–</span>';
+    rowsHost.appendChild(row);
+    var ins = row.querySelectorAll("input");
+    taskEls.push({ name: ins[0], level: ins[1], min: ins[2], pd: row.querySelector(".pd") });
+  }
+
+  // ---- Events ----
+  bindSeg("method", function (v) { state.method = v; render(); });
+  bindSeg("calc", function (v) { state.calc = v; render(); });
+  bindSeg("s-len", function (v) { state.shift = Number(v); render(); });
+  document.querySelector(".card").addEventListener("input", render);
+  $("clear").addEventListener("click", function () {
+    taskEls.forEach(function (r) { r.name.value = ""; r.level.value = ""; r.min.value = ""; });
+    render();
+  });
+
+  $("s-twa").value = "87";
+  render();
+})();
+</script>
+</body>
+</html>
