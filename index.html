@@ -433,7 +433,8 @@
     var r = round1(dose);
     if (state.method === "OSHA") return oshaStatus(dose, dose);
     if (r > 100) return { label: "Over the REL", tone: "red", over: true, action: false };
-    return { label: "At or under the REL", tone: "green", over: false, action: false };
+    // Colors follow the dose: green under 50%, yellow 50% to 100%, red over 100%
+    return { label: "At or under the REL", tone: r >= 50 ? "amber" : "green", over: false, action: false };
   }
 
   // ---- Display formatting ----
