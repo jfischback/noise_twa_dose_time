@@ -617,7 +617,7 @@
         var pp = partialDose(L, M, OSHA_PEL_THRESHOLD), pa = partialDose(L, M, OSHA_AL_THRESHOLD);
         r.pd.innerHTML = "<small>PEL <b>" + f1(pp) + "%</b></small><small>AL <b>" + f1(pa) + "%</b></small>";
         pel += pp; al += pa;
-        rows.push({ i: i, name: name, pel: pp, al: pa });
+        rows.push({ i: i, name: name, pel: pp, al: pa, above115: L > OSHA_MAX_CONTINUOUS });
       } else {
         var p = partialDose(L, M, null);
         r.pd.textContent = f1(p) + "%";
@@ -638,6 +638,7 @@
       return;
     }
     function twaText(d) { return d > 0 ? f1(twaFromDose(d)) + " dBA" : "n/a"; }
+    function taskName(r) { return r.name || "the task in row " + (r.i + 1); }
     function largest(key) {
       var best = rows[0];
       rows.forEach(function (r) { if (r[key] > best[key]) best = r; });
@@ -646,7 +647,9 @@
 
     var st, msg, key, over;
     if (osha) {
-      st = oshaStatus(pel, al);
+      // OSHA allows no continuous exposure above 115 dBA, whatever the dose.
+      var loud = rows.filter(function (r) { return r.above115; });
+      st = loud.length ? OSHA_STATUS.over : oshaStatus(pel, al);
       over = st.over;
       key = over ? "pel" : "al";
       var shown = over ? pel : al;
@@ -658,7 +661,12 @@
         '<div><p class="stat-k">Action-level dose</p><div class="stat-v">' + f0(al) + '<small>%</small></div><p class="stat-sub">8-hour TWA ' + twaText(al) + "</p></div>" +
         "</div>";
       msg = "The PEL dose, which counts only time at 90 dBA or above, is " + f0(pel) + "% (8-hour TWA " + twaText(pel) + "). The action-level dose, which counts time at 80 dBA or above, is " + f0(al) + "% (8-hour TWA " + twaText(al) + "). ";
-      if (over) msg += "The PEL dose is over 100%, so the exposure is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection in the meantime.";
+      if (loud.length) {
+        var names = loud.map(taskName);
+        var list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+        msg += (names.length > 1 ? "The levels for " + list + " are" : "The level for " + list + " is") + " above 115 dBA. OSHA allows no continuous exposure above 115 dBA, so the exposure is over the PEL whatever the dose. Feasible engineering or administrative controls are required, with hearing protection in the meantime.";
+      }
+      else if (over) msg += "The PEL dose is over 100%, so the exposure is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection in the meantime.";
       else if (st.action) msg += "The PEL dose is at or under 100%, but the action-level dose is 50% or more, so the exposure is at or above the 85 dBA action level and a hearing conservation program is required.";
       else msg += "The action-level dose is under 50%, so the exposure is below the 85 dBA action level; no action is required under OSHA.";
     } else {
@@ -676,7 +684,7 @@
         : "That is at or under the 85 dBA NIOSH REL.";
     }
     var best = largest(key);
-    var who = best.name || "the task in row " + (best.i + 1);
+    var who = taskName(best);
     if (best[key] > 0) msg += " The largest contributor" + (osha ? " to the " + (over ? "PEL" : "action-level") + " dose" : "") + " is " + who + " at " + f0(best[key]) + "% of the daily allowance on its own, so controls on that task make the biggest difference.";
     if (over) msg += " See the controls listed below.";
     els.msg.textContent = msg;
