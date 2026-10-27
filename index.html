@@ -108,7 +108,7 @@
   /* Task table */
   .tasks { width: 100%; }
   .tasks-head, .task {
-    display: grid; grid-template-columns: 22px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 68px;
+    display: grid; grid-template-columns: 22px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 84px;
     gap: 10px; align-items: center;
   }
   .tasks-head { font-size: 12px; color: var(--muted); padding: 0 0 8px; }
@@ -119,6 +119,8 @@
   .task .input input { font-size: 14px; }
   .task .pd { text-align: right; font-size: 13.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
   .task .pd.empty { color: #b3b7bc; font-weight: 400; }
+  .task .pd small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); line-height: 1.35; white-space: nowrap; }
+  .task .pd small b { font-weight: 600; color: var(--ink); }
   .tasks-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 12px; }
   .tasks-foot .note { margin: 0; max-width: 440px; }
   .link {
@@ -168,6 +170,7 @@
   .stat-k { font-size: 12.5px; color: #c9ccd0; margin: 0 0 6px; }
   .stat-v { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   .stat-v small { font-size: 12px; font-weight: 400; color: var(--dark-muted); margin-left: 4px; letter-spacing: 0; }
+  .stat-sub { font-size: 12px; color: var(--dark-muted); margin: 4px 0 0; }
   .first-sep { margin-top: 30px; border-top: 1px solid var(--dark-line); }
 
   .msg { font-size: 12.5px; line-height: 1.6; color: var(--dark-muted); margin: 18px 0 0; }
@@ -204,7 +207,7 @@
     .big .num { font-size: 76px; }
   }
   @media (max-width: 480px) {
-    .tasks-head, .task { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: 6px; }
+    .tasks-head, .task { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 76px; gap: 6px; }
     .tasks-head span:first-child, .task .n { display: none; }
     .task .input { padding: 0 8px; }
     .task .input .unit { display: none; }
@@ -297,7 +300,7 @@
           <div class="tasks-head"><span></span><span>Task (optional)</span><span>Level</span><span>Duration</span><span>Partial dose</span></div>
           <div id="task-rows"></div>
           <div class="tasks-foot">
-            <p class="note">Partial dose = task duration / time allowed at that level. OSHA: time below 80 dBA counts as zero. NIOSH: all time counts.</p>
+            <p class="note">Partial dose = task duration / time allowed at that level. OSHA: the PEL dose counts only time at 90 dBA or above; the action-level dose counts time at 80 dBA or above. NIOSH: all time counts.</p>
             <button type="button" class="link" id="clear">Clear all</button>
           </div>
         </div>
@@ -327,10 +330,15 @@
 <script>
 (function () {
   var METHODS = {
-    OSHA: { C: 90, ER: 5, threshold: 80, limit: "OSHA PEL", limitLong: "OSHA PEL (90 dBA)" },
-    NIOSH: { C: 85, ER: 3, threshold: null, limit: "NIOSH REL", limitLong: "NIOSH REL (85 dBA)" }
+    OSHA: { C: 90, ER: 5, limit: "OSHA PEL", limitLong: "OSHA PEL (90 dBA)" },
+    NIOSH: { C: 85, ER: 3, limit: "NIOSH REL", limitLong: "NIOSH REL (85 dBA)" }
   };
   var TASK_ROWS = 8;
+  var MAX_LEVEL = 140; // dBA; higher levels and TWAs are rejected
+  var OSHA_PEL_THRESHOLD = 90; // OSHA PEL dose ignores time below 90 dBA
+  var OSHA_AL_THRESHOLD = 80; // OSHA action-level dose ignores time below 80 dBA
+  var OSHA_MAX_CONTINUOUS = 115; // OSHA allows no continuous exposure above this
+  var TOO_LOUD = "Enter a level of 140 dBA or less.";
   var state = { method: "NIOSH", calc: "shift", shift: 8 };
 
   var CONTROLS = {
@@ -386,18 +394,26 @@
   function doseFromTwa(twa) { return 100 * Math.pow(2, (twa - m().C) / m().ER); }
   function twaFromDose(d) { return m().C + m().ER * Math.log2(d / 100); }
   function twaAtShift(twa, s, sEntered) { return twa + m().ER * Math.log2(s / sEntered); }
-  function partialDose(L, minutes) {
-    if (state.method === "OSHA" && L < METHODS.OSHA.threshold) return 0;
+  // threshold: levels below it count as zero (null = all time counts)
+  function partialDose(L, minutes, threshold) {
+    if (threshold !== null && L < threshold) return 0;
     return 100 * (minutes / 60) / timeAllowed(L);
   }
   function round1(x) { return Math.round(x * 10) / 10; }
+  var OSHA_STATUS = {
+    over: { label: "Over the PEL", tone: "red", over: true, action: false },
+    action: { label: "Above action level – hearing conservation program required", tone: "amber", over: false, action: true },
+    below: { label: "Below action level", tone: "green", over: false, action: false }
+  };
+  // OSHA status from a PEL dose and an action-level dose (the same dose outside the task calculator)
+  function oshaStatus(pelDose, alDose) {
+    if (round1(pelDose) > 100) return OSHA_STATUS.over;
+    if (round1(alDose) >= 50) return OSHA_STATUS.action;
+    return OSHA_STATUS.below;
+  }
   function status(dose) {
     var r = round1(dose);
-    if (state.method === "OSHA") {
-      if (r >= 100) return { label: "Over the PEL", tone: "red", over: true, action: false };
-      if (r >= 50) return { label: "Above action level – hearing conservation program required", tone: "amber", over: false, action: true };
-      return { label: "Below action level", tone: "green", over: false, action: false };
-    }
+    if (state.method === "OSHA") return oshaStatus(dose, dose);
     if (r > 100) return { label: "Over the REL", tone: "red", over: true, action: false };
     return { label: "At or under the REL", tone: "green", over: false, action: false };
   }
@@ -405,11 +421,12 @@
   // ---- Display formatting ----
   function f1(x) { return x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   function f0(x) { return x.toLocaleString("en-US", { maximumFractionDigits: 0 }); }
+  function fLevel(x) { return Number.isInteger(x) ? f0(x) : f1(x); }
   function num(el) {
     var v = el.value.trim();
     if (v === "") return null;
     var n = Number(v);
-    return isFinite(n) ? n : null;
+    return isFinite(n) && n >= 0 ? n : null;
   }
 
   // ---- DOM ----
@@ -462,12 +479,12 @@
     var twa = num($("s-twa"));
     var S = state.shift;
     var MEASURED = 8; // the entered TWA is an 8-hour TWA
-    if (twa === null) {
+    if (twa === null || twa > MAX_LEVEL) {
       setPill(undefined);
       setBig("–", "%", true);
       els.lead.textContent = "Dose for " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
       els.extra.innerHTML = "";
-      els.msg.textContent = "Enter a TWA to see the table.";
+      els.msg.textContent = twa === null ? "Enter a TWA to see the table." : TOO_LOUD;
       setControls(false);
       return;
     }
@@ -526,7 +543,7 @@
     var d0 = f0(D), x = f1(D / 100), t = f1(twa), msg;
     if (state.method === "OSHA") {
       if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the OSHA daily allowance, so the 8-hour TWA of " + t + " dBA is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection until they bring the exposure under the PEL. See the controls listed below.";
-      else if (st.action) msg = "A dose of " + d0 + "% is between 50% and 100%, so the 8-hour TWA of " + t + " dBA is at or above the 85 dBA action level but under the 90 dBA PEL. The worker must be in a hearing conservation program: audiometric testing, training and hearing protection made available. Controls are not required at this level but will lower the risk.";
+      else if (st.action) msg = "A dose of " + d0 + "% is 50% or more but not over 100%, so the 8-hour TWA of " + t + " dBA is at or above the 85 dBA action level and at or under the 90 dBA PEL. The worker must be in a hearing conservation program: audiometric testing, training and hearing protection made available. Controls are not required at this level but will lower the risk.";
       else msg = "A dose of " + d0 + "% is under 50%, so the 8-hour TWA of " + t + " dBA is below the 85 dBA action level. No action is required under OSHA. Re-check if the process or equipment changes.";
     } else {
       if (st.over) msg = "A dose of " + d0 + "% means the worker received " + x + " times the NIOSH daily allowance, so the 8-hour TWA of " + t + " dBA is over the 85 dBA REL. NIOSH recommends reducing the exposure with engineering and administrative controls and using hearing protection until that is done. See the controls listed below.";
@@ -540,16 +557,34 @@
     var L = num($("t-level"));
     setPill(null);
     els.extra.innerHTML = "";
-    if (L === null) {
+    if (L === null || L > MAX_LEVEL) {
       setBig("–", "hours", true);
       els.lead.textContent = "Time allowed to reach 100% dose.";
-      els.msg.textContent = "Enter a measured level.";
+      els.msg.textContent = L === null ? "Enter a measured level." : TOO_LOUD;
       setControls(false);
       return;
     }
+    if (state.method === "OSHA" && L > OSHA_MAX_CONTINUOUS) {
+      setBig("0", "hours", false);
+      els.lead.textContent = "OSHA allows no continuous exposure above 115 dBA.";
+      els.msg.textContent = "At " + fLevel(L) + " dBA, no exposure time is allowed: OSHA allows no continuous exposure above 115 dBA. Lower the level at the source or keep workers out of the area, and use hearing protection until that is done. See the controls listed below.";
+      setControls(true);
+      return;
+    }
     var T = timeAllowed(L);
-    var msg = "At " + f0(L) + " dBA, a worker reaches 100% of the " + m().limit + " after ";
-    if (T >= 24) {
+    var mins = T * 60, secs = T * 3600;
+    var CUT = "Time at this level beyond that has to be cut: rotate workers out, quiet or enclose the source, or use hearing protection until that is done. See the controls listed below.";
+    var msg = "At " + fLevel(L) + " dBA, a worker reaches 100% of the " + m().limit + " after ";
+    if (mins < 1) {
+      var sText = secs < 10 ? f1(secs) : f0(secs);
+      setBig(sText, "seconds", false);
+      els.lead.textContent = "Less than 1 minute to reach 100% dose.";
+      msg += sText + " seconds. " + CUT;
+    } else if (f1(T) === "0.0") {
+      setBig(f0(mins), "minutes", false);
+      els.lead.textContent = f0(mins) + " minutes to reach 100% dose.";
+      msg += f0(mins) + " minutes. " + CUT;
+    } else if (T >= 24) {
       setBig("24+", "hours", false);
       els.lead.textContent = "More than 1,440 minutes to reach 100% dose.";
       msg += "more than 24 hours, so this level on its own will not exceed the limit in any shift.";
@@ -558,7 +593,7 @@
       els.lead.textContent = f0(T * 60) + " minutes to reach 100% dose.";
       msg += f1(T) + " hours (" + f0(T * 60) + " minutes). ";
       msg += T < 8
-        ? "Time at this level beyond that has to be cut: rotate workers out, quiet or enclose the source, or use hearing protection until that is done. See the controls listed below."
+        ? CUT
         : "That covers a full 8-hour shift, but other noisy tasks in the same shift still add to the dose. Use the “Shift dose from tasks” calculator to total them.";
     }
     els.msg.textContent = msg;
@@ -566,51 +601,84 @@
   }
 
   function renderTasks() {
-    var total = 0, counted = 0, best = null;
+    var osha = state.method === "OSHA";
+    // OSHA keeps two doses (PEL: 90 dBA threshold, action level: 80 dBA); NIOSH keeps one.
+    var pel = 0, al = 0, counted = 0, tooLoud = false, rows = [];
     taskEls.forEach(function (r, i) {
       var L = num(r.level), M = num(r.min);
-      if (L === null || M === null) {
+      if (L === null || M === null || L > MAX_LEVEL) {
+        if (L !== null && L > MAX_LEVEL) tooLoud = true;
         r.pd.textContent = "–";
         r.pd.className = "pd empty";
         return;
       }
-      var p = partialDose(L, M);
-      r.pd.textContent = f1(p) + "%";
+      var name = r.name.value.trim();
+      if (osha) {
+        var pp = partialDose(L, M, OSHA_PEL_THRESHOLD), pa = partialDose(L, M, OSHA_AL_THRESHOLD);
+        r.pd.innerHTML = "<small>PEL <b>" + f1(pp) + "%</b></small><small>AL <b>" + f1(pa) + "%</b></small>";
+        pel += pp; al += pa;
+        rows.push({ i: i, name: name, pel: pp, al: pa });
+      } else {
+        var p = partialDose(L, M, null);
+        r.pd.textContent = f1(p) + "%";
+        al += p;
+        rows.push({ i: i, name: name, al: p });
+      }
       r.pd.className = "pd";
-      total += p;
       counted++;
-      if (best === null || p > best.p) best = { p: p, i: i, name: r.name.value.trim() };
     });
 
     els.extra.innerHTML = "";
-    if (!counted) {
+    if (!counted || tooLoud) {
       setPill(undefined);
       setBig("–", "%", true);
       els.lead.textContent = "Total dose for the shift.";
-      els.msg.textContent = "Enter at least one task with a level and a duration.";
+      els.msg.textContent = tooLoud ? TOO_LOUD : "Enter at least one task with a level and a duration.";
       setControls(false);
       return;
     }
-    var st = status(total);
-    var twa = total > 0 ? twaFromDose(total) : null;
-    var twaText = twa === null ? "n/a" : f1(twa);
-    setPill(st);
-    setBig(f0(total), "%", false);
-    els.lead.textContent = "Total dose for the shift.";
-    els.extra.innerHTML = '<div class="split one first-sep"><div><p class="stat-k">8-hour TWA</p><div class="stat-v">' + twaText + (twa === null ? "" : "<small>dBA</small>") + "</div></div></div>";
-
-    var msg = "The total dose for the shift is " + f0(total) + "%, which equals an 8-hour TWA of " + twaText + " dBA. ";
-    if (state.method === "OSHA") {
-      if (st.over) msg += "That is over the 90 dBA PEL, so feasible engineering or administrative controls are required, with hearing protection in the meantime.";
-      else if (st.action) msg += "That is at or above the 85 dBA action level but under the PEL, so a hearing conservation program is required.";
-      else msg += "That is below the 85 dBA action level; no action is required under OSHA.";
-    } else {
-      if (st.over) msg += "That is over the 85 dBA NIOSH REL, so NIOSH recommends engineering and administrative controls, with hearing protection until the exposure is reduced.";
-      else msg += "That is at or under the 85 dBA NIOSH REL.";
+    function twaText(d) { return d > 0 ? f1(twaFromDose(d)) + " dBA" : "n/a"; }
+    function largest(key) {
+      var best = rows[0];
+      rows.forEach(function (r) { if (r[key] > best[key]) best = r; });
+      return best;
     }
+
+    var st, msg, key, over;
+    if (osha) {
+      st = oshaStatus(pel, al);
+      over = st.over;
+      key = over ? "pel" : "al";
+      var shown = over ? pel : al;
+      setPill(st);
+      setBig(f0(shown), "%", false);
+      els.lead.textContent = over ? "PEL dose (time at 90 dBA or above)." : "Action-level dose (time at 80 dBA or above).";
+      els.extra.innerHTML = '<div class="split first-sep">' +
+        '<div><p class="stat-k">PEL dose</p><div class="stat-v">' + f0(pel) + '<small>%</small></div><p class="stat-sub">8-hour TWA ' + twaText(pel) + "</p></div>" +
+        '<div><p class="stat-k">Action-level dose</p><div class="stat-v">' + f0(al) + '<small>%</small></div><p class="stat-sub">8-hour TWA ' + twaText(al) + "</p></div>" +
+        "</div>";
+      msg = "The PEL dose, which counts only time at 90 dBA or above, is " + f0(pel) + "% (8-hour TWA " + twaText(pel) + "). The action-level dose, which counts time at 80 dBA or above, is " + f0(al) + "% (8-hour TWA " + twaText(al) + "). ";
+      if (over) msg += "The PEL dose is over 100%, so the exposure is over the 90 dBA PEL. Feasible engineering or administrative controls are required, with hearing protection in the meantime.";
+      else if (st.action) msg += "The PEL dose is at or under 100%, but the action-level dose is 50% or more, so the exposure is at or above the 85 dBA action level and a hearing conservation program is required.";
+      else msg += "The action-level dose is under 50%, so the exposure is below the 85 dBA action level; no action is required under OSHA.";
+    } else {
+      st = status(al);
+      over = st.over;
+      key = "al";
+      setPill(st);
+      setBig(f0(al), "%", false);
+      els.lead.textContent = "Total dose for the shift.";
+      var t = al > 0 ? twaFromDose(al) : null;
+      els.extra.innerHTML = '<div class="split one first-sep"><div><p class="stat-k">8-hour TWA</p><div class="stat-v">' + (t === null ? "n/a" : f1(t) + "<small>dBA</small>") + "</div></div></div>";
+      msg = "The total dose for the shift is " + f0(al) + "%, which equals an 8-hour TWA of " + (t === null ? "n/a" : f1(t)) + " dBA. ";
+      msg += over
+        ? "That is over the 85 dBA NIOSH REL, so NIOSH recommends engineering and administrative controls, with hearing protection until the exposure is reduced."
+        : "That is at or under the 85 dBA NIOSH REL.";
+    }
+    var best = largest(key);
     var who = best.name || "the task in row " + (best.i + 1);
-    msg += " The largest contributor is " + who + " at " + f0(best.p) + "% of the daily allowance on its own, so controls on that task make the biggest difference.";
-    if (st.over) msg += " See the controls listed below.";
+    if (best[key] > 0) msg += " The largest contributor" + (osha ? " to the " + (over ? "PEL" : "action-level") + " dose" : "") + " is " + who + " at " + f0(best[key]) + "% of the daily allowance on its own, so controls on that task make the biggest difference.";
+    if (over) msg += " See the controls listed below.";
     els.msg.textContent = msg;
     setControls(true);
   }
