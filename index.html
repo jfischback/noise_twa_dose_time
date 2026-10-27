@@ -108,11 +108,13 @@
   /* Task table */
   .tasks { width: 100%; }
   .tasks-head, .task {
-    display: grid; grid-template-columns: 22px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 84px;
+    display: grid; grid-template-columns: 22px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, .8fr) 84px;
     gap: 10px; align-items: center;
   }
   .tasks-head { font-size: 12px; color: var(--muted); padding: 0 0 8px; }
   .tasks-head span:last-child { text-align: right; }
+  .tasks-head .dur { grid-column: span 2; }
+  .task .input.dur input::placeholder { color: transparent; } /* the unit suffix labels it; shown on phones */
   .task { padding: 4px 0; }
   .task .n { font-size: 12px; color: var(--soft); text-align: center; }
   .task .input { height: 40px; padding: 0 12px; border-radius: 8px; }
@@ -207,10 +209,11 @@
     .big .num { font-size: 76px; }
   }
   @media (max-width: 480px) {
-    .tasks-head, .task { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 76px; gap: 6px; }
+    .tasks-head, .task { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, .9fr) 76px; gap: 6px; }
     .tasks-head span:first-child, .task .n { display: none; }
     .task .input { padding: 0 8px; }
     .task .input .unit { display: none; }
+    .task .input.dur input::placeholder { color: #a3a8ae; }
     .tasks-foot { flex-direction: column; }
     .bar-row { grid-template-columns: 92px 1fr 58px; }
     .bars-cap { margin-left: 92px; margin-right: 58px; }
@@ -297,7 +300,7 @@
       <!-- 4. Shift dose from tasks -->
       <div class="row full" data-calc="tasks">
         <div class="tasks">
-          <div class="tasks-head"><span></span><span>Task (optional)</span><span>Level</span><span>Duration</span><span>Partial dose</span></div>
+          <div class="tasks-head"><span></span><span>Task (optional)</span><span>Level</span><span class="dur">Duration</span><span>Partial dose</span></div>
           <div id="task-rows"></div>
           <div class="tasks-foot">
             <p class="note">Partial dose = task duration / time allowed at that level. OSHA: the PEL dose counts only time at 90 dBA or above; the action-level dose counts time at 80 dBA or above. NIOSH: all time counts.</p>
@@ -616,12 +619,20 @@
     setControls(true);
   }
 
+  // Task duration in minutes from its hr and min boxes; null if both are empty or either is invalid
+  function duration(r) {
+    var hEmpty = r.hr.value.trim() === "", mEmpty = r.min.value.trim() === "";
+    if (hEmpty && mEmpty) return null;
+    var h = hEmpty ? 0 : num(r.hr), mm = mEmpty ? 0 : num(r.min);
+    return h === null || mm === null ? null : h * 60 + mm;
+  }
+
   function renderTasks() {
     var osha = state.method === "OSHA";
     // OSHA keeps two doses (PEL: 90 dBA threshold, action level: 80 dBA); NIOSH keeps one.
     var pel = 0, al = 0, counted = 0, tooLoud = false, rows = [];
     taskEls.forEach(function (r, i) {
-      var L = num(r.level), M = num(r.min);
+      var L = num(r.level), M = duration(r);
       if (L === null || M === null || L > MAX_LEVEL) {
         if (L !== null && L > MAX_LEVEL) tooLoud = true;
         r.pd.textContent = "–";
@@ -728,11 +739,12 @@
       '<span class="n">' + (i + 1) + "</span>" +
       '<label class="input"><input type="text" placeholder="Task" aria-label="Task ' + (i + 1) + ' name"></label>' +
       '<label class="input"><input type="number" step="any" inputmode="decimal" aria-label="Task ' + (i + 1) + ' level"><span class="unit">dBA</span></label>' +
-      '<label class="input"><input type="number" step="any" inputmode="decimal" min="0" aria-label="Task ' + (i + 1) + ' duration"><span class="unit">min</span></label>' +
+      '<label class="input dur"><input type="number" step="any" inputmode="decimal" min="0" placeholder="hr" aria-label="Task ' + (i + 1) + ' hours"><span class="unit">hr</span></label>' +
+      '<label class="input dur"><input type="number" step="any" inputmode="decimal" min="0" placeholder="min" aria-label="Task ' + (i + 1) + ' minutes"><span class="unit">min</span></label>' +
       '<span class="pd empty">–</span>';
     rowsHost.appendChild(row);
     var ins = row.querySelectorAll("input");
-    taskEls.push({ name: ins[0], level: ins[1], min: ins[2], pd: row.querySelector(".pd") });
+    taskEls.push({ name: ins[0], level: ins[1], hr: ins[2], min: ins[3], pd: row.querySelector(".pd") });
   }
 
   // ---- Events ----
@@ -741,7 +753,7 @@
   bindSeg("s-len", function (v) { state.shift = Number(v); render(); });
   document.querySelector(".card").addEventListener("input", render);
   $("clear").addEventListener("click", function () {
-    taskEls.forEach(function (r) { r.name.value = ""; r.level.value = ""; r.min.value = ""; });
+    taskEls.forEach(function (r) { r.name.value = ""; r.level.value = ""; r.hr.value = ""; r.min.value = ""; });
     render();
   });
 
