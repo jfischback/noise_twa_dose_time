@@ -310,7 +310,7 @@
     <!-- Results -->
     <section class="result" aria-live="polite" aria-label="Results">
       <span class="pill gray" id="pill">Waiting for input</span>
-      <div class="big"><span class="num" id="num">&ndash;</span><span class="u" id="unit"></span></div>
+      <div class="big"><span class="num" id="num">&ndash;</span><span class="u" id="unit"></span><span class="num" id="num2" hidden></span><span class="u" id="unit2" hidden></span></div>
       <p class="lead" id="lead"></p>
       <div id="extra"></div>
       <p class="msg" id="msg"></p>
@@ -421,6 +421,13 @@
   // ---- Display formatting ----
   function f1(x) { return x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   function f0(x) { return x.toLocaleString("en-US", { maximumFractionDigits: 0 }); }
+  function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+  // Whole minutes as "48 minutes", "4 hours" or "6 hours 4 minutes"
+  function hoursMinutes(totalMin) {
+    var h = Math.floor(totalMin / 60), mm = totalMin % 60;
+    if (!h) return plural(mm, "minute");
+    return plural(h, "hour") + (mm ? " " + plural(mm, "minute") : "");
+  }
   function fLevel(x) { return Number.isInteger(x) ? f0(x) : f1(x); }
   function num(el) {
     var v = el.value.trim();
@@ -432,7 +439,7 @@
   // ---- DOM ----
   var $ = function (id) { return document.getElementById(id); };
   var els = {
-    pill: $("pill"), num: $("num"), unit: $("unit"), lead: $("lead"), extra: $("extra"),
+    pill: $("pill"), num: $("num"), unit: $("unit"), num2: $("num2"), unit2: $("unit2"), lead: $("lead"), extra: $("extra"),
     msg: $("msg"), controls: $("controls"), cHead: $("c-head"), cList: $("c-list")
   };
 
@@ -454,10 +461,20 @@
     });
   }
 
-  function setBig(text, unit, empty) {
+  // text2/unit2: optional second part, e.g. "6 hr 4 min"
+  function setBig(text, unit, empty, text2, unit2) {
+    var two = text2 !== undefined;
+    var len = text.length + (two ? text2.length + 2 : 0);
+    var size = len > 7 ? " sm" : len > 5 ? " md" : "";
     els.num.textContent = text;
-    els.num.className = "num" + (empty ? " empty" : "") + (text.length > 7 ? " sm" : text.length > 5 ? " md" : "");
+    els.num.className = "num" + (empty ? " empty" : "") + size;
     els.unit.textContent = empty ? "" : unit;
+    els.num2.hidden = els.unit2.hidden = !two;
+    if (two) {
+      els.num2.textContent = text2;
+      els.num2.className = "num" + size;
+      els.unit2.textContent = unit2;
+    }
   }
   function setPill(st) {
     if (st === null) { els.pill.hidden = true; return; }
@@ -565,7 +582,7 @@
       return;
     }
     if (state.method === "OSHA" && L > OSHA_MAX_CONTINUOUS) {
-      setBig("0", "hours", false);
+      setBig("0", "minutes", false);
       els.lead.textContent = "OSHA allows no continuous exposure above 115 dBA.";
       els.msg.textContent = "At " + fLevel(L) + " dBA, no exposure time is allowed: OSHA allows no continuous exposure above 115 dBA. Lower the level at the source or keep workers out of the area, and use hearing protection until that is done. See the controls listed below.";
       setControls(true);
@@ -580,18 +597,17 @@
       setBig(sText, "seconds", false);
       els.lead.textContent = "Less than 1 minute to reach 100% dose.";
       msg += sText + " seconds. " + CUT;
-    } else if (f1(T) === "0.0") {
-      setBig(f0(mins), "minutes", false);
-      els.lead.textContent = f0(mins) + " minutes to reach 100% dose.";
-      msg += f0(mins) + " minutes. " + CUT;
     } else if (T >= 24) {
       setBig("24+", "hours", false);
-      els.lead.textContent = "More than 1,440 minutes to reach 100% dose.";
+      els.lead.textContent = "More than 24 hours to reach 100% dose.";
       msg += "more than 24 hours, so this level on its own will not exceed the limit in any shift.";
     } else {
-      setBig(f1(T), "hours", false);
-      els.lead.textContent = f0(T * 60) + " minutes to reach 100% dose.";
-      msg += f1(T) + " hours (" + f0(T * 60) + " minutes). ";
+      var total = Math.round(mins), h = Math.floor(total / 60), mm = total % 60;
+      if (!h) setBig(String(mm), mm === 1 ? "minute" : "minutes", false);
+      else if (!mm) setBig(String(h), h === 1 ? "hour" : "hours", false);
+      else setBig(String(h), "hr", false, String(mm), "min");
+      els.lead.textContent = "Time to reach 100% dose.";
+      msg += hoursMinutes(total) + ". ";
       msg += T < 8
         ? CUT
         : "That covers a full 8-hour shift, but other noisy tasks in the same shift still add to the dose. Use the “Shift dose from tasks” calculator to total them.";
