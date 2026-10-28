@@ -545,8 +545,8 @@
     });
     var picked = rows.filter(function (r) { return r.h === S; })[0];
     setPill(picked.st);
-    setBig(f0(picked.dose), "%", false);
-    els.lead.textContent = "Dose if the measured Lavg lasted " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
+    setBig(f1(picked.twa), "dBA", false, f0(picked.dose), "%");
+    els.lead.textContent = "8-hour equivalent TWA and dose if the measured Lavg lasted " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
 
     var maxDose = Math.max.apply(null, rows.map(function (r) { return r.dose; }));
     var scale = Math.max(150, maxDose * 1.15);
