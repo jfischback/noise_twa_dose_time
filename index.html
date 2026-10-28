@@ -283,9 +283,10 @@
       <!-- 1. Shift converter -->
       <div class="row" data-calc="shift">
         <div>
-          <p class="label">8-hour TWA</p>
-          <p class="hint">Measured time-weighted average noise level.</p>
-          <label class="input"><input type="number" step="any" inputmode="decimal" id="s-twa" placeholder="Enter TWA" aria-label="8-hour TWA"><span class="unit">dBA</span></label>
+          <p class="label">Measured Lavg</p>
+          <p class="hint">Average sound level measured by the dosimeter or sound level meter over the whole shift. Do not enter the dosimeter’s TWA readout: it is already normalized to 8 hours and would be double-counted.</p>
+          <label class="input"><input type="number" step="any" inputmode="decimal" id="s-lavg" placeholder="Enter Lavg" aria-label="Measured Lavg"><span class="unit">dBA</span></label>
+          <p class="note">The Lavg must be recorded at the same exchange rate as the method selected: 5 dB for OSHA, 3 dB for NIOSH.</p>
         </div>
         <div>
           <p class="label">Shift length</p>
@@ -361,8 +362,8 @@
 <script>
 (function () {
   var METHODS = {
-    OSHA: { C: 90, ER: 5, limit: "OSHA PEL", limitLong: "OSHA PEL (90 dBA)" },
-    NIOSH: { C: 85, ER: 3, limit: "NIOSH REL", limitLong: "NIOSH REL (85 dBA)" }
+    OSHA: { C: 90, ER: 5, lavgFactor: 16.61, limit: "OSHA PEL", limitLong: "OSHA PEL (90 dBA)" },
+    NIOSH: { C: 85, ER: 3, lavgFactor: 10, limit: "NIOSH REL", limitLong: "NIOSH REL (85 dBA)" }
   };
   var TASK_ROWS = 8;
   var MAX_LEVEL = 140; // dBA; higher levels and TWAs are rejected
@@ -424,7 +425,8 @@
   function timeAllowed(L) { return 8 / Math.pow(2, (L - m().C) / m().ER); }
   function doseFromTwa(twa) { return 100 * Math.pow(2, (twa - m().C) / m().ER); }
   function twaFromDose(d) { return m().C + m().ER * Math.log2(d / 100); }
-  function twaAtShift(twa, s, sEntered) { return twa + m().ER * Math.log2(s / sEntered); }
+  // 8-hour equivalent TWA for a shift of s hours at a measured Lavg (no quiet time assumed)
+  function twaFromLavg(lavg, s) { return lavg + m().lavgFactor * Math.log10(s / 8); }
   // threshold: levels below it count as zero (null = all time counts)
   function partialDose(L, minutes, threshold) {
     if (threshold !== null && L < threshold) return 0;
@@ -525,27 +527,26 @@
 
   // ---- Calculators ----
   function renderShift() {
-    var twa = num($("s-twa"));
+    var lavg = num($("s-lavg"));
     var S = state.shift;
-    var MEASURED = 8; // the entered TWA is an 8-hour TWA
-    if (twa === null || twa > MAX_LEVEL) {
+    if (lavg === null || lavg > MAX_LEVEL) {
       setPill(undefined);
       setBig("–", "%", true);
       els.lead.textContent = "Dose for " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
       els.extra.innerHTML = "";
-      els.msg.textContent = twa === null ? "Enter a TWA to see the table." : TOO_LOUD;
+      els.msg.textContent = lavg === null ? "Enter a measured Lavg to see the table." : TOO_LOUD;
       setControls(false);
       return;
     }
     var rows = [8, 10, 12].map(function (h) {
-      var t = twaAtShift(twa, h, MEASURED);
+      var t = twaFromLavg(lavg, h);
       var d = doseFromTwa(t);
       return { h: h, twa: t, dose: d, st: status(d) };
     });
     var picked = rows.filter(function (r) { return r.h === S; })[0];
     setPill(picked.st);
     setBig(f0(picked.dose), "%", false);
-    els.lead.textContent = "Dose if the same noise continued for " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
+    els.lead.textContent = "Dose if the measured Lavg lasted " + (S === 8 ? "an " : "a ") + S + "-hour shift.";
 
     var maxDose = Math.max.apply(null, rows.map(function (r) { return r.dose; }));
     var scale = Math.max(150, maxDose * 1.15);
@@ -554,15 +555,15 @@
     rows.forEach(function (r) {
       var w = Math.max(0, Math.min(100, r.dose / scale * 100));
       html += '<div class="bar-row' + (r.h === S ? ' sel' : '') + '">' +
-        '<span class="name">' + r.h + ' hours<span class="st t-' + r.st.tone + '">' + esc(r.st.label) + '</span></span>' +
+        '<span class="name">' + r.h + '-hour shift<span class="st t-' + r.st.tone + '">' + esc(r.st.label) + '</span></span>' +
         '<span class="track"><span class="fill f-' + r.st.tone + '" style="width:' + w + '%"></span><span class="mark" style="left:' + markPct + '%"></span></span>' +
-        '<span class="val">' + f0(r.dose) + '%<small>' + f1(r.twa) + ' dBA</small></span>' +
+        '<span class="val">' + f0(r.dose) + '%<small>' + f1(r.twa) + ' dBA</small><small>8-hr TWA</small></span>' +
         '</div>';
     });
     html += "</div>";
     els.extra.innerHTML = html;
 
-    var msg = "The " + f1(twa) + " dBA TWA you entered is an 8-hour TWA. The table shows the equivalent TWA and dose if that same noise continued for 8, 10 and 12 hours. Dose is what compliance is based on: 100% is the " + m().limitLong + ". ";
+    var msg = "The " + f1(lavg) + " dBA Lavg you entered is assumed to last the entire shift, with no quiet time. For 8-, 10- and 12-hour shifts, the table shows the dose and the 8-hour equivalent TWA, which is what compares against the limit. Dose is what compliance is based on: 100% is the " + m().limitLong + ". ";
     if (rows.some(function (r) { return r.st.over; })) {
       msg += "Shift lengths marked over the limit need engineering or administrative controls, a shorter shift, or hearing protection in the meantime. See the controls listed below.";
     } else if (rows.some(function (r) { return r.st.action; })) {
@@ -786,7 +787,7 @@
     render();
   });
 
-  $("s-twa").value = "87";
+  $("s-lavg").value = "87";
   render();
 })();
 </script>
