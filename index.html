@@ -239,8 +239,181 @@
     .bars-cap { margin-left: 92px; margin-right: 58px; }
   }
 </style>
+<style>
+  /* Disclaimer gate. Shown until the user agrees; the page behind it stays hidden. */
+  html:not(.oems-agreed) { overflow: hidden; }
+  html:not(.oems-agreed) body > :not(.oems-gate) { visibility: hidden !important; }
+  html.oems-agreed .oems-gate { display: none; }
+
+  .oems-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: #eef0f3;
+    color: #15171c;
+    font: 15px/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .oems-gate-bar {
+    position: relative;
+    flex: none;
+    color: #fff;
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(100deg, #0a1631 0%, #0f2b55 50%, #1b4f86 100%);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+  }
+
+  .oems-gate-bar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #38bdf8 0%, #6366f1 50%, #38bdf8 100%);
+  }
+
+  .oems-gate-brand {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 22px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .oems-gate-name { font-size: 2rem; font-weight: 800; line-height: 1; letter-spacing: -0.04em; }
+
+  .oems-gate-full {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #cbd5e1;
+  }
+
+  .oems-gate-card {
+    width: 100%;
+    max-width: 720px;
+    margin: 36px auto;
+    padding: 32px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .oems-gate-card:focus { outline: none; }
+
+  .oems-gate-card h2 {
+    margin: 0 0 18px;
+    font-size: clamp(1.6rem, 5vw, 2rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+  }
+
+  .oems-gate-card p { margin: 0 0 14px; color: #374151; }
+
+  .oems-gate-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 24px 0 22px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f3f4f6;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .oems-gate-check input {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+    accent-color: #6366f1;
+    cursor: pointer;
+  }
+
+  .oems-gate-btn {
+    appearance: none;
+    border: 0;
+    border-radius: 10px;
+    height: 46px;
+    padding: 0 24px;
+    background: #121318;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.15);
+  }
+
+  .oems-gate-btn:hover:not(:disabled) { background: #2a2c33; }
+  .oems-gate-btn:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+  .oems-gate-btn:disabled { background: #d1d5db; color: #6b7280; box-shadow: none; cursor: not-allowed; }
+
+  @media (max-width: 560px) {
+    .oems-gate-card { margin: 16px auto; padding: 22px 18px; border-radius: 0; }
+    .oems-gate-btn { width: 100%; }
+  }
+
+  @media print {
+    html:not(.oems-agreed) body > :not(.oems-gate) { display: none !important; }
+    .oems-gate { position: static; overflow: visible; }
+  }
+</style>
+<script>try { if (localStorage.getItem("oems_disclaimer_v1")) document.documentElement.classList.add("oems-agreed"); } catch (e) {}</script>
 </head>
 <body>
+<div class="oems-gate" id="oemsGate">
+  <div class="oems-gate-bar">
+    <div class="oems-gate-brand">
+      <span class="oems-gate-name">OEMS</span>
+      <span class="oems-gate-full">Occupational Exposure Management Systems LLC</span>
+    </div>
+  </div>
+  <div class="oems-gate-card" role="dialog" aria-modal="true" aria-labelledby="oemsGateTitle" tabindex="-1">
+    <h2 id="oemsGateTitle">Before you use this tool</h2>
+    <p>This calculator is provided by OEMS (Occupational Exposure Management Systems) for general informational and educational purposes only. It is not professional industrial hygiene, medical, engineering, or legal advice, and it does not replace an evaluation by a qualified professional.</p>
+    <p>Results depend entirely on the information you enter and on the assumptions built into the tool. They may be incomplete, inaccurate, or not applicable to your workplace. You are responsible for verifying all results against applicable regulations (including OSHA standards), manufacturer data, and your organization’s requirements before relying on them.</p>
+    <p>Do not use this tool as the sole basis for decisions that affect worker health or safety, including respirator selection, ventilation design, or hearing protection selection.</p>
+    <p>OEMS makes no warranties, express or implied, about the accuracy, completeness, or fitness for a particular purpose of this tool or its results. To the fullest extent permitted by law, OEMS is not liable for any loss, injury, or damage arising from use of, or reliance on, this tool.</p>
+    <label class="oems-gate-check"><input type="checkbox" id="oemsGateCheck"> <span>I have read and understand this disclaimer, and I agree to use this tool at my own risk.</span></label>
+    <button type="button" class="oems-gate-btn" id="oemsGateBtn" disabled>I agree — continue</button>
+  </div>
+</div>
+<script>
+// Disclaimer gate: the first visit in a browser must agree before using the tool.
+(function () {
+  var KEY = "oems_disclaimer_v1";
+  var root = document.documentElement;
+  var gate = document.getElementById("oemsGate");
+  if (!gate) return;
+  if (root.classList.contains("oems-agreed")) { gate.remove(); return; }
+
+  var check = document.getElementById("oemsGateCheck");
+  var btn = document.getElementById("oemsGateBtn");
+  check.checked = false;
+  btn.disabled = true;
+  check.addEventListener("change", function () { btn.disabled = !check.checked; });
+
+  btn.addEventListener("click", function () {
+    if (!check.checked) return;
+    try { localStorage.setItem(KEY, new Date().toISOString()); } catch (e) {}
+    root.classList.add("oems-agreed");
+    gate.remove();
+    window.scrollTo(0, 0);
+  });
+
+  gate.querySelector("[role=dialog]").focus({ preventScroll: true });
+})();
+</script>
 <header class="banner">
   <div class="banner-in">
     <div>
